@@ -274,8 +274,8 @@
         </parameters>
     </template>
 <template isTestPlan="true">
-    <name>bzm - Correlation Recorder</name>
-    <fileName>/bin/templates/correlation-recorder.jmx</fileName>
+    <name>bzm - Auto Correlation Recorder</name>
+    <fileName>/bin/templates/auto-correlation-recorder.jmx</fileName>
     <description><![CDATA[
         <h1>Template showing how to record Correlated Scripts</h1>
         <h2>JMeter Configuration</h2>
@@ -291,22 +291,12 @@
         </p>
         <h2>Useful links</h2>
             <ul>
+                <li><a href="https://blazemeter.github.io/CorrelationRecorder/">Official plugin documentation</a></li>
                 <li><a href="http://jmeter.apache.org/usermanual/jmeter_proxy_step_by_step.pdf" >http://jmeter.apache.org/usermanual/jmeter_proxy_step_by_step.pdf</a></li>
                 <li><a href="https://github.com/Blazemeter/CorrelationRecorder/blob/master/README.md" >https://github.com/Blazemeter/CorrelationRecorder/blob/master/README.md</a></li>
             </ul>
         ]]></description>
 </template>
 
-<template isTestPlan="true">
-    <name>Recording RTE</name>
-    <fileName>/bin/templates/RteRecordingTemplate.jmx</fileName>
-    <description><![CDATA[
-        <h1>Template showing how to record test plan for mainframe application</h1>
-        <h2>JMeter Configuration</h2>
-        The recorder needs to be properly configured with server, port, protocol and terminal type before start recording.
-        <br/>
-        For details on recorder please check <a href="https://github.com/Blazemeter/RTEPlugin/blob/master/README.md">the RTE plugin documentation</a>
-        ]]>
-    </description>
-</template>
+
 </templates>

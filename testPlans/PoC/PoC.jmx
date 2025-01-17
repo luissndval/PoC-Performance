@@ -1,0 +1,271 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<jmeterTestPlan version="1.2" properties="5.0" jmeter="5.6.3">
+  <hashTree>
+    <TestPlan guiclass="TestPlanGui" testclass="TestPlan" testname="Test Plan">
+      <elementProp name="TestPlan.user_defined_variables" elementType="Arguments" guiclass="ArgumentsPanel" testclass="Arguments" testname="User Defined Variables">
+        <collectionProp name="Arguments.arguments"/>
+      </elementProp>
+    </TestPlan>
+    <hashTree>
+      <Arguments guiclass="ArgumentsPanel" testclass="Arguments" testname="variables">
+        <collectionProp name="Arguments.arguments">
+          <elementProp name="url_test" elementType="Argument">
+            <stringProp name="Argument.name">url_test</stringProp>
+            <stringProp name="Argument.value">api.themoviedb.org</stringProp>
+            <stringProp name="Argument.metadata">=</stringProp>
+          </elementProp>
+          <elementProp name="influxDBUrl" elementType="Argument">
+            <stringProp name="Argument.name">influxDBUrl</stringProp>
+            <stringProp name="Argument.value">http://localhost:8086/write?db=PoC</stringProp>
+            <stringProp name="Argument.metadata">=</stringProp>
+          </elementProp>
+          <elementProp name="Application" elementType="Argument">
+            <stringProp name="Argument.name">Application</stringProp>
+            <stringProp name="Argument.value">PoC-TMDB</stringProp>
+            <stringProp name="Argument.metadata">=</stringProp>
+          </elementProp>
+        </collectionProp>
+      </Arguments>
+      <hashTree/>
+      <ConfigTestElement guiclass="HttpDefaultsGui" testclass="ConfigTestElement" testname="HTTP Request Defaults">
+        <stringProp name="HTTPSampler.domain">www.example.com</stringProp>
+        <stringProp name="HTTPSampler.protocol">https</stringProp>
+        <elementProp name="HTTPsampler.Arguments" elementType="Arguments" guiclass="HTTPArgumentsPanel" testclass="Arguments" testname="User Defined Variables">
+          <collectionProp name="Arguments.arguments"/>
+        </elementProp>
+        <stringProp name="HTTPSampler.implementation"></stringProp>
+      </ConfigTestElement>
+      <hashTree/>
+      <CookieManager guiclass="CookiePanel" testclass="CookieManager" testname="HTTP Cookie Manager">
+        <collectionProp name="CookieManager.cookies"/>
+        <boolProp name="CookieManager.clearEachIteration">false</boolProp>
+        <boolProp name="CookieManager.controlledByThreadGroup">false</boolProp>
+      </CookieManager>
+      <hashTree/>
+      <ThreadGroup guiclass="ThreadGroupGui" testclass="ThreadGroup" testname="01-GET-TOKEN">
+        <intProp name="ThreadGroup.num_threads">50</intProp>
+        <intProp name="ThreadGroup.ramp_time">60</intProp>
+        <boolProp name="ThreadGroup.same_user_on_next_iteration">true</boolProp>
+        <stringProp name="ThreadGroup.on_sample_error">stopthread</stringProp>
+        <elementProp name="ThreadGroup.main_controller" elementType="LoopController" guiclass="LoopControlPanel" testclass="LoopController" testname="Loop Controller">
+          <stringProp name="LoopController.loops">5</stringProp>
+          <boolProp name="LoopController.continue_forever">false</boolProp>
+        </elementProp>
+      </ThreadGroup>
+      <hashTree>
+        <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="01-GET-Information_account">
+          <stringProp name="HTTPSampler.domain">${url_test}</stringProp>
+          <stringProp name="HTTPSampler.port">443</stringProp>
+          <stringProp name="HTTPSampler.contentEncoding">UTF-8</stringProp>
+          <stringProp name="HTTPSampler.path">/3/account/2222</stringProp>
+          <boolProp name="HTTPSampler.follow_redirects">true</boolProp>
+          <stringProp name="HTTPSampler.method">GET</stringProp>
+          <boolProp name="HTTPSampler.use_keepalive">true</boolProp>
+          <boolProp name="HTTPSampler.postBodyRaw">false</boolProp>
+          <elementProp name="HTTPsampler.Arguments" elementType="Arguments" guiclass="HTTPArgumentsPanel" testclass="Arguments" testname="User Defined Variables">
+            <collectionProp name="Arguments.arguments"/>
+          </elementProp>
+        </HTTPSamplerProxy>
+        <hashTree>
+          <HeaderManager guiclass="HeaderPanel" testclass="HeaderManager" testname="HTTP Header Manager" enabled="true">
+            <collectionProp name="HeaderManager.headers">
+              <elementProp name="Content-Type" elementType="Header">
+                <stringProp name="Header.name">Content-Type</stringProp>
+                <stringProp name="Header.value">application/json</stringProp>
+              </elementProp>
+              <elementProp name="Cache-Control" elementType="Header">
+                <stringProp name="Header.name">Cache-Control</stringProp>
+                <stringProp name="Header.value">no-cache</stringProp>
+              </elementProp>
+              <elementProp name="Accept-Encoding" elementType="Header">
+                <stringProp name="Header.name">Accept-Encoding</stringProp>
+                <stringProp name="Header.value">gzip, deflate, br</stringProp>
+              </elementProp>
+              <elementProp name="User-Agent" elementType="Header">
+                <stringProp name="Header.name">User-Agent</stringProp>
+                <stringProp name="Header.value">PostmanRuntime/7.39.0</stringProp>
+              </elementProp>
+              <elementProp name="Accept" elementType="Header">
+                <stringProp name="Header.name">Accept</stringProp>
+                <stringProp name="Header.value">*/*</stringProp>
+              </elementProp>
+              <elementProp name="" elementType="Header">
+                <stringProp name="Header.name">Authorization</stringProp>
+                <stringProp name="Header.value">Bearer eyJhbGciOiJIUzI1NiJ9.eyJhdWQiOiJmYmUzNWJhMjM0ZWRlMGVlZWJiOWVhMzQxMGFhNzY4NiIsIm5iZiI6MTcxOTIzOTYzMi42NDYwMDAxLCJzdWIiOiI2Njc5ODNkMDY4ZmJiNmZkODE5MDRmN2MiLCJzY29wZXMiOlsiYXBpX3JlYWQiXSwidmVyc2lvbiI6MX0.fj703zC7SLUeXKUxLvJcuVL38nTFZFNTcXAUpk7Eb5Q</stringProp>
+              </elementProp>
+            </collectionProp>
+          </HeaderManager>
+          <hashTree/>
+          <JSR223PostProcessor guiclass="TestBeanGUI" testclass="JSR223PostProcessor" testname="capture_data_field" enabled="true">
+            <stringProp name="scriptLanguage">groovy</stringProp>
+            <stringProp name="parameters"></stringProp>
+            <stringProp name="filename"></stringProp>
+            <stringProp name="cacheKey">true</stringProp>
+            <stringProp name="script">import org.apache.http.client.methods.HttpPost
+import org.apache.http.entity.StringEntity
+import org.apache.http.impl.client.CloseableHttpClient
+import org.apache.http.impl.client.HttpClients
+import java.net.URL
+
+// Configuración de InfluxDB
+String influxDBUrl = &quot;http://localhost:8086/write?db=PoC&quot; // Cambia al nombre de tu base de datos
+String measurement = &quot;jmeter&quot;
+
+// Captura el código de respuesta
+String responseCode = &quot;no-response&quot;;
+if (prev != null &amp;&amp; prev.getResponseCode() != null) {
+    responseCode = prev.getResponseCode();
+    log.info(&quot;Capturado responseCode: &quot; + responseCode);
+}
+
+// Captura el cuerpo de la respuesta (limitado a 500 caracteres)
+String responseBody = &quot;no-body&quot;;
+if (prev != null &amp;&amp; prev.getResponseDataAsString() != null) {
+    responseBody = prev.getResponseDataAsString();
+    if (responseBody.length() &gt; 500) {
+        responseBody = responseBody.substring(0, 500) + &quot;...&quot;;
+    }
+    log.info(&quot;Capturado responseBody: &quot; + responseBody);
+}
+
+// Captura el Path de la URL (solo para HTTP samplers)
+String urlPath = &quot;no-path&quot;;
+if (sampler != null &amp;&amp; sampler instanceof org.apache.jmeter.protocol.http.sampler.HTTPSamplerBase) {
+    try {
+        String fullUrl = sampler.getUrl().toString();
+        URL url = new URL(fullUrl);
+        urlPath = url.getPath(); // Extrae solo el path
+        log.info(&quot;Capturado Path: &quot; + urlPath);
+    } catch (Exception e) {
+        log.error(&quot;Error extrayendo el path: &quot; + e.getMessage());
+    }
+}
+
+// Escapa los valores para cumplir con InfluxDB
+responseBody = responseBody.replace(&quot;\&quot;&quot;, &quot;\\\&quot;&quot;); // Escapa comillas dobles
+urlPath = urlPath.replace(&quot; &quot;, &quot;\\ &quot;).replace(&quot;,&quot;, &quot;\\,&quot;).replace(&quot;=&quot;, &quot;\\=&quot;); // Escapa espacios, comas y signos de igual
+
+// Formatea los datos como línea de protocolo de InfluxDB
+String data = String.format(
+    &quot;%s,application=PoC,responseCode=%s,path=\&quot;%s\&quot; responseBody=\&quot;%s\&quot;&quot;,
+    measurement, responseCode, urlPath, responseBody
+);
+
+log.info(&quot;Datos preparados para InfluxDB: &quot; + data);
+
+// Envía los datos a InfluxDB
+CloseableHttpClient client = HttpClients.createDefault();
+HttpPost post = new HttpPost(influxDBUrl);
+
+try {
+    post.setEntity(new StringEntity(data, &quot;UTF-8&quot;));
+    post.setHeader(&quot;Content-Type&quot;, &quot;text/plain&quot;);
+    client.execute(post);
+    log.info(&quot;Datos enviados a InfluxDB exitosamente.&quot;);
+} catch (Exception e) {
+    log.error(&quot;Error enviando datos a InfluxDB: &quot; + e.getMessage());
+} finally {
+    client.close();
+}
+</stringProp>
+          </JSR223PostProcessor>
+          <hashTree/>
+        </hashTree>
+        <DebugSampler guiclass="TestBeanGUI" testclass="DebugSampler" testname="Debug Sampler" enabled="false">
+          <boolProp name="displayJMeterProperties">false</boolProp>
+          <boolProp name="displayJMeterVariables">true</boolProp>
+          <boolProp name="displaySystemProperties">false</boolProp>
+        </DebugSampler>
+        <hashTree/>
+        <BackendListener guiclass="BackendListenerGui" testclass="BackendListener" testname="Backend Listener">
+          <elementProp name="arguments" elementType="Arguments" guiclass="ArgumentsPanel" testclass="Arguments">
+            <collectionProp name="Arguments.arguments">
+              <elementProp name="influxdbMetricsSender" elementType="Argument">
+                <stringProp name="Argument.name">influxdbMetricsSender</stringProp>
+                <stringProp name="Argument.value">org.apache.jmeter.visualizers.backend.influxdb.HttpMetricsSender</stringProp>
+                <stringProp name="Argument.metadata">=</stringProp>
+              </elementProp>
+              <elementProp name="influxdbUrl" elementType="Argument">
+                <stringProp name="Argument.name">influxdbUrl</stringProp>
+                <stringProp name="Argument.value">${influxDBUrl}</stringProp>
+                <stringProp name="Argument.metadata">=</stringProp>
+              </elementProp>
+              <elementProp name="application" elementType="Argument">
+                <stringProp name="Argument.name">application</stringProp>
+                <stringProp name="Argument.value">${Application}</stringProp>
+                <stringProp name="Argument.metadata">=</stringProp>
+              </elementProp>
+              <elementProp name="measurement" elementType="Argument">
+                <stringProp name="Argument.name">measurement</stringProp>
+                <stringProp name="Argument.value">jmeter</stringProp>
+                <stringProp name="Argument.metadata">=</stringProp>
+              </elementProp>
+              <elementProp name="summaryOnly" elementType="Argument">
+                <stringProp name="Argument.name">summaryOnly</stringProp>
+                <stringProp name="Argument.value">false</stringProp>
+                <stringProp name="Argument.metadata">=</stringProp>
+              </elementProp>
+              <elementProp name="samplersRegex" elementType="Argument">
+                <stringProp name="Argument.name">samplersRegex</stringProp>
+                <stringProp name="Argument.value">.*</stringProp>
+                <stringProp name="Argument.metadata">=</stringProp>
+              </elementProp>
+              <elementProp name="percentiles" elementType="Argument">
+                <stringProp name="Argument.name">percentiles</stringProp>
+                <stringProp name="Argument.value">99;95;90</stringProp>
+                <stringProp name="Argument.metadata">=</stringProp>
+              </elementProp>
+              <elementProp name="testTitle" elementType="Argument">
+                <stringProp name="Argument.name">testTitle</stringProp>
+                <stringProp name="Argument.value">${Application}</stringProp>
+                <stringProp name="Argument.metadata">=</stringProp>
+              </elementProp>
+              <elementProp name="eventTags" elementType="Argument">
+                <stringProp name="Argument.name">eventTags</stringProp>
+                <stringProp name="Argument.value">responseCode,responseBody,urlPath</stringProp>
+                <stringProp name="Argument.metadata">=</stringProp>
+              </elementProp>
+            </collectionProp>
+          </elementProp>
+          <stringProp name="classname">org.apache.jmeter.visualizers.backend.influxdb.InfluxdbBackendListenerClient</stringProp>
+        </BackendListener>
+        <hashTree/>
+        <ResultCollector guiclass="ViewResultsFullVisualizer" testclass="ResultCollector" testname="View Results Tree" enabled="true">
+          <boolProp name="ResultCollector.error_logging">false</boolProp>
+          <objProp>
+            <name>saveConfig</name>
+            <value class="SampleSaveConfiguration">
+              <time>true</time>
+              <latency>true</latency>
+              <timestamp>true</timestamp>
+              <success>true</success>
+              <label>true</label>
+              <code>true</code>
+              <message>true</message>
+              <threadName>true</threadName>
+              <dataType>false</dataType>
+              <encoding>false</encoding>
+              <assertions>true</assertions>
+              <subresults>false</subresults>
+              <responseData>false</responseData>
+              <samplerData>false</samplerData>
+              <xml>false</xml>
+              <fieldNames>true</fieldNames>
+              <responseHeaders>false</responseHeaders>
+              <requestHeaders>false</requestHeaders>
+              <responseDataOnError>true</responseDataOnError>
+              <saveAssertionResultsFailureMessage>true</saveAssertionResultsFailureMessage>
+              <assertionsResultsToSave>0</assertionsResultsToSave>
+              <bytes>true</bytes>
+              <hostname>true</hostname>
+              <threadCounts>true</threadCounts>
+              <sampleCount>true</sampleCount>
+            </value>
+          </objProp>
+          <stringProp name="filename"></stringProp>
+        </ResultCollector>
+        <hashTree/>
+      </hashTree>
+    </hashTree>
+  </hashTree>
+</jmeterTestPlan>
