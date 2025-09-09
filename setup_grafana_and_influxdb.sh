@@ -1,156 +1,240 @@
-#!/bin/bash
+#!/usr/bin/env bash
+set -Eeuo pipefail
 
-# Configuración inicial para Grafana
-GRAFANA_BASE_DIR="$(pwd)/grafana_setup"
-GRAFANA_ZIP_NAME="grafana.tar.gz"
+MODE="${1:-auto}"   # auto | start | install | stop | status
+
+# ---------- Config ----------
 GRAFANA_VERSION="9.4.7"
-GRAFANA_DOWNLOAD_URL="https://dl.grafana.com/oss/release/grafana-${GRAFANA_VERSION}.darwin-amd64.tar.gz"
-GRAFANA_API_URL="http://localhost:3000/api/datasources"
-GRAFANA_CREDENTIALS="admin:admin"
-
-# Configuración inicial para InfluxDB
-INFLUXDB_BASE_DIR="$(pwd)/influxdb_setup"
 INFLUXDB_VERSION="1.11.8"
-INFLUXDB_TAR_NAME="influxdb-${INFLUXDB_VERSION}-darwin-amd64.tar.gz"
-INFLUXDB_DOWNLOAD_URL="https://download.influxdata.com/influxdb/releases/${INFLUXDB_TAR_NAME}"
 INFLUXDB_DB_NAME="PoC"
 INFLUXDB_PORT=8086
+GRAFANA_PORT=3000
+GRAFANA_CREDENTIALS="admin:admin"
 
-# Función para instalar Grafana
-install_grafana() {
-    echo "====================================="
-    echo "Instalando Grafana ${GRAFANA_VERSION}..."
-    echo "====================================="
+BASE_DIR="$(pwd)"
+GRAFANA_BASE_DIR="$BASE_DIR/grafana_setup"
+INFLUXDB_BASE_DIR="$BASE_DIR/influxdb_setup"
 
-    # Limpiar o crear la carpeta principal
-    if [ -d "$GRAFANA_BASE_DIR" ]; then
-        echo "Limpiando carpeta existente..."
-        rm -rf "$GRAFANA_BASE_DIR"
-    fi
-    mkdir -p "$GRAFANA_BASE_DIR"
+GRAFANA_TGZ="grafana-${GRAFANA_VERSION}.darwin-amd64.tar.gz"
+GRAFANA_URL="https://dl.grafana.com/oss/release/${GRAFANA_TGZ}"
 
-    # Descargar Grafana
-    curl -L "$GRAFANA_DOWNLOAD_URL" -o "$GRAFANA_BASE_DIR/$GRAFANA_ZIP_NAME"
-    if [ ! -f "$GRAFANA_BASE_DIR/$GRAFANA_ZIP_NAME" ]; then
-        echo "Error: No se pudo descargar Grafana."
-        exit 1
-    fi
+INFLUX_TGZ="influxdb-${INFLUXDB_VERSION}-darwin-amd64.tar.gz"
+INFLUX_URL="https://download.influxdata.com/influxdb/releases/${INFLUX_TGZ}"
 
-    # Extraer Grafana
-    tar -xzf "$GRAFANA_BASE_DIR/$GRAFANA_ZIP_NAME" -C "$GRAFANA_BASE_DIR"
-    GRAFANA_DIR="$GRAFANA_BASE_DIR/grafana-${GRAFANA_VERSION}"
-    if [ ! -d "$GRAFANA_DIR" ]; then
-        echo "Error: No se encontró la carpeta extraída de Grafana."
-        exit 1
-    fi
+# (Se pueden sobreescribir por env si ya tienes instalaciones en otro lado)
+: "${GRAFANA_HOME:="$GRAFANA_BASE_DIR/grafana-${GRAFANA_VERSION}"}"
+: "${GRAFANA_LOG:="/tmp/grafana.log"}"
+: "${INFLUXDB_DIR:="$INFLUXDB_BASE_DIR/influxdb-${INFLUXDB_VERSION}-darwin-amd64"}"
+: "${INFLUXDB_LOG:="/tmp/influxdb.log"}"
 
-    # Verificar la carpeta `bin`
-    if [ ! -d "$GRAFANA_DIR/bin" ]; then
-        echo "Error: El directorio 'bin' no se encontró en $GRAFANA_DIR. Verifica la descarga."
-        exit 1
-    fi
+GRAFANA_BIN=""
+INFLUXD_BIN=""
+INFLUX_CLI=""
 
-    # Configurar usuario y contraseña predeterminados
-    export GF_SECURITY_ADMIN_USER="admin"
-    export GF_SECURITY_ADMIN_PASSWORD="admin"
+# ---------- Helpers ----------
+port_up() { lsof -i ":$1" &>/dev/null; }
+http_ok() { curl -sf "$1" >/dev/null; }
+die() { echo "Error: $*" >&2; exit 1; }
 
-    # Ejecutar el servidor de Grafana
-    cd "$GRAFANA_DIR/bin"
-    ./grafana-server --homepath="$GRAFANA_DIR" > grafana.log 2>&1 &
-    GRAFANA_PID=$!
-    echo "Grafana se está ejecutando en http://localhost:3000 con usuario 'admin' y contraseña 'admin'"
-    sleep 10
+detect_grafana() {
+  if command -v grafana-server &>/dev/null; then
+    GRAFANA_BIN="$(command -v grafana-server)"
+    return
+  fi
+  if [[ -x "$GRAFANA_HOME/bin/grafana-server" ]]; then
+    GRAFANA_BIN="$GRAFANA_HOME/bin/grafana-server"
+    return
+  fi
+  GRAFANA_BIN=""
 }
 
-# Función para instalar InfluxDB
-install_influxdb() {
-    echo "====================================="
-    echo "Instalando InfluxDB ${INFLUXDB_VERSION}..."
-    echo "====================================="
-
-    # Limpiar o crear la carpeta principal
-    if [ -d "$INFLUXDB_BASE_DIR" ]; then
-        echo "Limpiando carpeta existente..."
-        rm -rf "$INFLUXDB_BASE_DIR"
-    fi
-    mkdir -p "$INFLUXDB_BASE_DIR"
-    cd "$INFLUXDB_BASE_DIR"
-
-    # Descargar InfluxDB
-    curl -L "$INFLUXDB_DOWNLOAD_URL" -o "$INFLUXDB_TAR_NAME"
-    if [ ! -f "$INFLUXDB_TAR_NAME" ]; then
-        echo "Error: No se pudo descargar InfluxDB."
-        exit 1
-    fi
-
-    # Extraer InfluxDB
-    tar -xf "$INFLUXDB_TAR_NAME" -C "$INFLUXDB_BASE_DIR"
-    if [ ! -f "$INFLUXDB_BASE_DIR/influxd" ] || [ ! -f "$INFLUXDB_BASE_DIR/influx" ]; then
-        echo "Error: No se encontraron los binarios de InfluxDB en $INFLUXDB_BASE_DIR."
-        exit 1
-    fi
-
-    # Hacer ejecutables los binarios
-    chmod +x "$INFLUXDB_BASE_DIR/influxd" "$INFLUXDB_BASE_DIR/influx"
-
-    # Iniciar InfluxDB
-    "$INFLUXDB_BASE_DIR/influxd" > "$INFLUXDB_BASE_DIR/influxdb.log" 2>&1 &
-    INFLUXDB_PID=$!
-    sleep 10
-
-    # Verificar si el servidor está corriendo
-    if ! lsof -i :$INFLUXDB_PORT &>/dev/null; then
-        echo "Error: No se pudo iniciar InfluxDB en el puerto $INFLUXDB_PORT."
-        kill $INFLUXDB_PID
-        exit 1
-    fi
-
-    # Crear la base de datos
-    "$INFLUXDB_BASE_DIR/influx" -execute "CREATE DATABASE $INFLUXDB_DB_NAME"
-    if [ $? -ne 0 ]; then
-        echo "Error: No se pudo crear la base de datos $INFLUXDB_DB_NAME."
-        kill $INFLUXDB_PID
-        exit 1
-    fi
-
-    echo "InfluxDB está disponible en: http://localhost:$INFLUXDB_PORT"
-    echo "Base de datos creada: $INFLUXDB_DB_NAME"
-}
-
-# Función para agregar InfluxDB como fuente de datos en Grafana
-add_influxdb_to_grafana() {
-    echo "====================================="
-    echo "Agregando InfluxDB como fuente de datos en Grafana..."
-    echo "====================================="
-    curl -X POST -H "Content-Type: application/json" -u "$GRAFANA_CREDENTIALS" \
-        -d '{
-            "name": "InfluxDB",
-            "type": "influxdb",
-            "access": "proxy",
-            "url": "http://localhost:'"$INFLUXDB_PORT"'",
-            "database": "'"$INFLUXDB_DB_NAME"'",
-            "user": "",
-            "password": "",
-            "basicAuth": false,
-            "isDefault": true
-        }' "$GRAFANA_API_URL"
-
-    if [ $? -eq 0 ]; then
-        echo "InfluxDB se agregó correctamente a Grafana como fuente de datos."
+detect_influx1() {
+  if command -v influxd &>/dev/null; then
+    INFLUXD_BIN="$(command -v influxd)"
+    # Validar mayor 1.x
+    if "$INFLUXD_BIN" version 2>/dev/null | grep -Eq '(^| )v?1\.'; then
+      :
     else
-        echo "Error: No se pudo agregar InfluxDB como fuente de datos en Grafana."
+      die "Se detectó influxd pero no es 1.x. Este script está preparado para InfluxDB 1.x."
     fi
+  elif [[ -x "$INFLUXDB_DIR/influxd" ]]; then
+    INFLUXD_BIN="$INFLUXDB_DIR/influxd"
+  else
+    INFLUXD_BIN=""
+  fi
+
+  if command -v influx &>/dev/null; then
+    INFLUX_CLI="$(command -v influx)"
+  elif [[ -x "$INFLUXDB_DIR/influx" ]]; then
+    INFLUX_CLI="$INFLUXDB_DIR/influx"
+  else
+    INFLUX_CLI=""
+  fi
 }
 
-# Llamar a las funciones de instalación
-install_grafana
-install_influxdb
-add_influxdb_to_grafana
+install_grafana() {
+  echo "== Instalando Grafana ${GRAFANA_VERSION} =="
+  rm -rf "$GRAFANA_BASE_DIR"; mkdir -p "$GRAFANA_BASE_DIR"
+  curl -L "$GRAFANA_URL" -o "$GRAFANA_BASE_DIR/$GRAFANA_TGZ"
+  tar -xzf "$GRAFANA_BASE_DIR/$GRAFANA_TGZ" -C "$GRAFANA_BASE_DIR"
+  detect_grafana
+  [[ -n "$GRAFANA_BIN" ]] || die "grafana-server no encontrado tras la instalación"
+}
 
-# Mensaje final
-echo "====================================="
-echo "Grafana e InfluxDB se han instalado y configurado correctamente."
-echo "Grafana: http://localhost:3000 (admin/admin)"
-echo "InfluxDB: http://localhost:$INFLUXDB_PORT"
-echo "InfluxDB se ha agregado como fuente de datos en Grafana."
-echo "====================================="
+install_influx1() {
+  echo "== Instalando InfluxDB ${INFLUXDB_VERSION} (1.x) =="
+  rm -rf "$INFLUXDB_BASE_DIR"; mkdir -p "$INFLUXDB_BASE_DIR"
+  curl -L "$INFLUX_URL" -o "$INFLUXDB_BASE_DIR/$INFLUX_TGZ"
+  tar -xf "$INFLUXDB_BASE_DIR/$INFLUX_TGZ" -C "$INFLUXDB_BASE_DIR"
+  chmod +x "$INFLUXDB_DIR/influxd" "$INFLUXDB_DIR/influx"
+  detect_influx1
+  [[ -n "$INFLUXD_BIN" && -n "$INFLUX_CLI" ]] || die "No se encontraron binarios de Influx 1.x tras la instalación"
+}
+
+start_grafana() {
+  echo "== Iniciando Grafana =="
+  detect_grafana
+  [[ -n "$GRAFANA_BIN" ]] || die "Grafana no está instalado. Ejecuta: $0 install"
+  if port_up "$GRAFANA_PORT"; then
+    echo "Grafana ya está escuchando en :$GRAFANA_PORT"
+    return
+  fi
+  export GF_SECURITY_ADMIN_USER="admin"
+  export GF_SECURITY_ADMIN_PASSWORD="admin"
+  # Si es tarball, pasar --homepath; si es sistema, no hace falta
+  if [[ -x "$GRAFANA_HOME/bin/grafana-server" && "$GRAFANA_BIN" == "$GRAFANA_HOME/bin/grafana-server" ]]; then
+    nohup "$GRAFANA_BIN" --homepath="$GRAFANA_HOME" >"$GRAFANA_LOG" 2>&1 &
+  else
+    nohup "$GRAFANA_BIN" >"$GRAFANA_LOG" 2>&1 &
+  fi
+  # Esperar health
+  for i in {1..30}; do
+    if http_ok "http://localhost:${GRAFANA_PORT}/api/health"; then
+      echo "Grafana OK en http://localhost:${GRAFANA_PORT}"
+      return
+    fi
+    sleep 1
+  done
+  die "Grafana no respondió saludable en tiempo esperado. Revisa $GRAFANA_LOG"
+}
+
+start_influx1() {
+  echo "== Iniciando InfluxDB 1.x =="
+  detect_influx1
+  [[ -n "$INFLUXD_BIN" && -n "$INFLUX_CLI" ]] || die "InfluxDB 1.x no está instalado. Ejecuta: $0 install"
+  if port_up "$INFLUXDB_PORT"; then
+    echo "InfluxDB ya está escuchando en :$INFLUXDB_PORT"
+  else
+    nohup "$INFLUXD_BIN" >"$INFLUXDB_LOG" 2>&1 &
+    # Esperar ping
+    for i in {1..30}; do
+      if curl -sf "http://localhost:${INFLUXDB_PORT}/ping" >/dev/null; then
+        break
+      fi
+      sleep 1
+    done
+    curl -sf "http://localhost:${INFLUXDB_PORT}/ping" >/dev/null || die "InfluxDB no respondió /ping. Revisa $INFLUXDB_LOG"
+  fi
+  # Crear DB si no existe (solo 1.x)
+  if ! "$INFLUX_CLI" -host 127.0.0.1 -port "${INFLUXDB_PORT}" -execute "SHOW DATABASES" 2>/dev/null | grep -q "^${INFLUXDB_DB_NAME}$"; then
+    "$INFLUX_CLI" -host 127.0.0.1 -port "${INFLUXDB_PORT}" -execute "CREATE DATABASE ${INFLUXDB_DB_NAME}" \
+      || die "No se pudo crear DB ${INFLUXDB_DB_NAME}"
+    echo "DB creada: ${INFLUXDB_DB_NAME}"
+  else
+    echo "DB ${INFLUXDB_DB_NAME} ya existe"
+  fi
+}
+
+ensure_grafana_datasource() {
+  echo "== Asegurando DataSource InfluxDB en Grafana =="
+  # ¿Existe?
+  code=$(curl -su "$GRAFANA_CREDENTIALS" -o /dev/null -w "%{http_code}" \
+    "http://localhost:${GRAFANA_PORT}/api/datasources/name/InfluxDB" || true)
+  if [[ "$code" == "200" ]]; then
+    echo "DataSource 'InfluxDB' ya existe (no se toca)."
+    return
+  fi
+  # Crear
+  curl -sS -u "$GRAFANA_CREDENTIALS" -H "Content-Type: application/json" -X POST \
+    -d "{
+      \"name\": \"InfluxDB\",
+      \"type\": \"influxdb\",
+      \"access\": \"proxy\",
+      \"url\": \"http://localhost:${INFLUXDB_PORT}\",
+      \"database\": \"${INFLUXDB_DB_NAME}\",
+      \"user\": \"\",
+      \"password\": \"\",
+      \"basicAuth\": false,
+      \"isDefault\": true
+    }" "http://localhost:${GRAFANA_PORT}/api/datasources" >/dev/null \
+    || die "No se pudo crear el DataSource en Grafana"
+  echo "DataSource creado: InfluxDB -> http://localhost:${INFLUXDB_PORT}/${INFLUXDB_DB_NAME}"
+}
+
+status() {
+  echo "== Status =="
+  if port_up "$GRAFANA_PORT"; then
+    echo "Grafana: UP (:${GRAFANA_PORT})"
+  else
+    echo "Grafana: DOWN"
+  fi
+  if port_up "$INFLUXDB_PORT"; then
+    echo "InfluxDB: UP (:${INFLUXDB_PORT})"
+  else
+    echo "InfluxDB: DOWN"
+  fi
+}
+
+stop_port() {
+  local p="$1"
+  if port_up "$p"; then
+    local pid
+    pid="$(lsof -t -i ":$p" || true)"
+    if [[ -n "${pid:-}" ]]; then
+      kill "$pid" || true
+      sleep 1
+      if port_up "$p"; then kill -9 "$pid" || true; fi
+      echo "Detenido proceso en puerto :$p (PID ${pid})"
+    fi
+  fi
+}
+
+stop_all() {
+  echo "== Deteniendo servicios =="
+  stop_port "$GRAFANA_PORT"
+  stop_port "$INFLUXDB_PORT"
+}
+
+# ---------- Flow ----------
+case "$MODE" in
+  install)
+    install_grafana
+    install_influx1
+    start_influx1
+    start_grafana
+    ensure_grafana_datasource
+    ;;
+  start)
+    start_influx1
+    start_grafana
+    ensure_grafana_datasource
+    ;;
+  status)
+    status
+    ;;
+  stop)
+    stop_all
+    ;;
+  auto|*)
+    # Si ya hay binarios, no reinstala. Si faltan, instala lo que falte.
+    detect_grafana
+    detect_influx1
+    [[ -z "$GRAFANA_BIN" ]] && install_grafana
+    [[ -z "$INFLUXD_BIN" || -z "$INFLUX_CLI" ]] && install_influx1
+    start_influx1
+    start_grafana
+    ensure_grafana_datasource
+    ;;
+esac
+
+echo "Listo ✔  Grafana: http://localhost:${GRAFANA_PORT} | InfluxDB 1.x: http://localhost:${INFLUXDB_PORT}"
